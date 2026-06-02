@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Image, { type StaticImageData } from 'next/image'
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react'
 
 type Screenshot = {
   label: string
   sublabel: string
-  image: StaticImageData
+  videoSrc: string
+  poster?: string
 }
 
 type Props = {
@@ -53,7 +53,7 @@ export function ScreenshotsSection({ screenshots }: Props) {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8">
         {screenshots.map((shot, i) => (
           <button
             key={shot.label}
@@ -68,48 +68,32 @@ export function ScreenshotsSection({ screenshots }: Props) {
                 <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]/50" />
               </div>
               <div className="ml-1 flex-1 min-w-0 bg-[#e0eae0] rounded px-2.5 py-0.5">
-                <span className="text-[10px] text-slate-500 truncate block">plant-database.vercel.app</span>
+                <span className="text-[10px] text-slate-500 truncate block">plant-database.app</span>
               </div>
               <ZoomIn className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </div>
 
-            {/* Screenshot image */}
-            <div className="relative aspect-16/10 bg-[#e0eae0]">
-              <Image
-                src={shot.image}
-                alt={shot.label}
-                fill
-                className="object-cover opacity-65 group-hover:opacity-80 transition-opacity duration-300"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            {/* Demo video preview */}
+            <div className="aspect-16/10 bg-[#e0eae0] overflow-hidden">
+              <video
+                src={shot.videoSrc}
+                poster={shot.poster}
+                muted
+                loop
+                playsInline
+                autoPlay
+                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300"
               />
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-linear-to-t from-[#f5fdf5]/95 via-[#f5fdf5]/30 to-transparent" />
+            </div>
 
-              {/* Mock UI skeleton */}
-              <div className="absolute inset-x-0 top-0 p-3 opacity-20 pointer-events-none">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="h-1.5 w-16 rounded-full bg-green-600/40" />
-                  <div className="h-1.5 w-24 rounded-full bg-slate-500/40" />
-                  <div className="ml-auto h-1.5 w-10 rounded-full bg-slate-500/30" />
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[...Array(6)].map((_, j) => (
-                    <div key={j} className="h-8 rounded bg-green-300/30 border border-green-400/20" />
-                  ))}
-                </div>
-              </div>
-
-              {/* Label */}
-              <div className="absolute inset-x-0 bottom-0 p-4">
-                <p className="text-xs font-semibold text-green-700 leading-snug">{shot.label}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">{shot.sublabel}</p>
-              </div>
+            {/* Caption bar — always visible, consistent with browser chrome */}
+            <div className="px-4 py-3 bg-[#eef3ee] border-t border-green-200">
+              <p className="text-xs font-semibold text-slate-700 leading-snug">{shot.label}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{shot.sublabel}</p>
             </div>
           </button>
         ))}
       </div>
-
-      <p className="text-sm text-slate-500 text-center">Screenshots available on request.</p>
 
       {/* ── Lightbox ────────────────────────────────────────────────────────── */}
       {current && (
@@ -131,12 +115,15 @@ export function ScreenshotsSection({ screenshots }: Props) {
               <X className="w-4 h-4" />
             </button>
 
-            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/80">
-              <Image
-                src={current.image}
-                alt={current.label}
+            <div className="rounded-xl overflow-hidden shadow-2xl shadow-black/80 bg-black">
+              <video
+                src={current.videoSrc}
+                poster={current.poster}
+                controls
+                autoPlay
+                muted
+                playsInline
                 className="w-full h-auto block"
-                priority
               />
             </div>
 
@@ -150,7 +137,7 @@ export function ScreenshotsSection({ screenshots }: Props) {
                   <ChevronLeft className="w-3.5 h-3.5" />
                   Prev
                 </button>
-                <span className="text-xs text-slate-700 tabular-nums">
+                <span className="text-xs text-slate-200 tabular-nums">
                   {(selected ?? 0) + 1} / {screenshots.length}
                 </span>
                 <button

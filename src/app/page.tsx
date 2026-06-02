@@ -6,10 +6,6 @@ import {
   Database,
   Lock,
 } from "lucide-react";
-import searchView from "../../public/search-view.webp";
-import savedPlantsView from "../../public/saved-plants-view.webp";
-import plantDetail from "../../public/plant-detail.webp";
-import trefleExtended from "../../public/trefle-extended.webp";
 import { ScreenshotsSection } from "./screenshots-section";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -21,12 +17,12 @@ const techCards = [
     accent: "#3178C6",
   },
   {
-    name: "React 18",
+    name: "React 19",
     role: "Client rendering · state · context API",
     accent: "#61DAFB",
   },
   {
-    name: "Next.js 14",
+    name: "Next.js 16",
     role: "App Router · API proxy · Vercel runtime",
     accent: "#e2e8f0",
   },
@@ -36,8 +32,8 @@ const techCards = [
     accent: "#3ECF8E",
   },
   {
-    name: "Trefle API",
-    role: "Global botanical catalogue (proxied)",
+    name: "Vercel Analytics",
+    role: "Privacy-friendly usage insights · zero config",
     accent: "#86efac",
   },
   {
@@ -52,7 +48,7 @@ const techCards = [
   },
   {
     name: "Cloudinary",
-    role: "Async image hosting (fully optional layer)",
+    role: "Async image hosting via next-cloudinary",
     accent: "#93c5fd",
   },
 ];
@@ -60,10 +56,10 @@ const techCards = [
 const archLayers = [
   {
     label: "Client",
-    sublabel: "Browser-rendered · offline-capable",
+    sublabel: "Offline-capable",
     accent: "#61DAFB",
     items: [
-      { name: "React 18", detail: "UI + Context state" },
+      { name: "React 19", detail: "UI + Context state" },
       { name: "Tailwind CSS v4", detail: "Utility-first styles" },
       { name: "Dexie / IndexedDB", detail: "Local PENDING → SYNCED FSM" },
       { name: "Lucide React", detail: "Tree-shakeable icons" },
@@ -75,6 +71,10 @@ const archLayers = [
   pendingImages: EntityTable<PendingImage, 'id'>
   pendingDeletions: EntityTable<PendingDeletion, 'plantId'>
 }
+db.version(1).stores({
+  plants: 'id, syncStatus, createdAt',
+  pendingImages: 'id, plantId',
+})
 db.version(2).stores({
   plants: 'id, syncStatus, createdAt',
   pendingImages: 'id, plantId',
@@ -84,10 +84,10 @@ db.version(2).stores({
   },
   {
     label: "Server",
-    sublabel: "Vercel Edge · key isolation",
+    sublabel: "Vercel Serverless · Key Isolation",
     accent: "#3ECF8E",
     items: [
-      { name: "Next.js 14 App Router", detail: "Routing + SSR" },
+      { name: "Next.js 16 App Router", detail: "Routing + SSR" },
       { name: "/api/plants", detail: "Trefle proxy + cache headers" },
       { name: "Input validation", detail: "Query length · ID parsing" },
       { name: "TypeScript", detail: "Strict typing throughout" },
@@ -96,6 +96,15 @@ db.version(2).stores({
       path: "src/app/api/plants/route.ts",
       code: `export async function GET(request: NextRequest) {
   const cid = crypto.randomUUID()
+  // plant_id → plant + species in one round trip
+  if (plant_id_raw !== null) {
+    const plant = await fetchPlantById(plant_id)
+    const species = await fetchSpeciesDetails(
+      plant.main_species_id
+    )
+    return NextResponse.json({ data: plant, species })
+  }
+  // search mode — cached 3600 s
   const response = await fetch(
     \`\${BASE_URL}/plants/search\${buildQueryString(params)}\`,
     { next: { revalidate: 3600 } }
@@ -112,7 +121,6 @@ db.version(2).stores({
       { name: "Trefle API", detail: "Botanical catalogue" },
       { name: "Supabase Postgres", detail: "Persistent user data + RLS" },
       { name: "Cloudinary CDN", detail: "Optional image hosting" },
-      { name: "POWO · GBIF · EPPO", detail: "Enrichment data sources" },
     ],
     snippet: {
       path: "src/lib/supabase/client.ts",
@@ -123,6 +131,13 @@ db.version(2).stores({
     auth: {
       persistSession: true,
       storageKey: AUTH_COOKIE_KEY,
+      storage: {
+        getItem: getCookie,
+        setItem: setCookie,
+        removeItem: deleteCookie,
+      },
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
     },
   }
 )`,
@@ -134,37 +149,37 @@ const techDecisions = [
   {
     decision: "Next.js App Router with server-side API proxy",
     reason:
-      "The Trefle API key must never reach the client. /api/plants proxies all requests server-side, adds HTTP cache headers, and validates query params — impossible with a pure client-side SPA.",
+      "The Trefle API key must never reach the client. /api/plants proxies all requests server-side, adds HTTP cache headers, and validates query params - impossible with a pure client-side SPA.",
   },
   {
-    decision: "Supabase browser client only — no SSR adapter",
+    decision: "Supabase browser client only - no SSR adapter",
     reason:
       "@supabase/ssr was intentionally removed. The app uses RLS for per-user row isolation. Plain createClient from @supabase/supabase-js does the same job with one fewer dependency.",
   },
   {
     decision: "Offline-first persistence with Dexie / IndexedDB",
     reason:
-      "Every plant write is staged locally first with a PENDING | SYNCED | ERROR sync status state machine. Reconnection triggers automatic background sync — no user action required, no data loss.",
+      "Every plant write is staged locally first with a PENDING | SYNCED | ERROR sync status state machine. Reconnection triggers automatic background sync - no user action required, no data loss.",
   },
   {
-    decision: "React Context only — no external state library",
+    decision: "React Context only - no external state library",
     reason:
       "usePlants is the single source of truth. FilterContext holds shared filter state across pages. Zustand or Redux would add indirection without removing meaningful complexity at this scale.",
   },
   {
     decision: "Strict type boundary: Trefle shapes vs. app domain",
     reason:
-      "TrefleSpecies (snake_case API shapes) and Plant (camelCase app interface) are kept entirely separate. Mapping happens in exactly two files — never a third location — preventing API shapes from leaking into the domain model.",
+      "TrefleSpecies (snake_case API shapes) and Plant (camelCase app interface) are kept entirely separate. Mapping happens in exactly two files - never a third location. Preventing API shapes from leaking into the domain model.",
   },
   {
     decision: "Cloudinary image hosting as an optional layer",
     reason:
-      "Plant images queue in a pendingImages IndexedDB table and upload asynchronously to Cloudinary. The app runs fully without Cloudinary configured — falls back to base64 data URLs stored locally.",
+      "Plant images queue in a pendingImages IndexedDB table and upload asynchronously to Cloudinary. The app runs fully without Cloudinary configured - falls back to base64 data URLs stored locally.",
   },
   {
     decision: "Server-side response caching via revalidate headers",
     reason:
-      "Trefle API responses cached for 3600 seconds. Next.js fetch cache applies automatically — repeated calls from different users hit the cache layer, reducing upstream API calls and latency. Plant + species fetches combined into one round trip.",
+      "Trefle API responses cached for 3600 seconds. Next.js fetch cache applies automatically - repeated calls from different users hit the cache layer, reducing upstream API calls and latency. Plant + species fetches combined into one round trip.",
   },
   {
     decision: "Input validation at the API boundary",
@@ -179,7 +194,7 @@ const techDecisions = [
   {
     decision: "Recent searches persisted to localStorage with validation",
     reason:
-      "Search queries stored as a max-5 JSON array. Runtime validation ensures stored values are valid strings — silently discards corrupted or cross-origin writes. Queries trimmed and deduplicated on each add. No external state library needed for this UX pattern.",
+      "Search queries stored as a max-5 JSON array. Runtime validation ensures stored values are valid strings - silently discards corrupted or cross-origin writes. Queries trimmed and deduplicated on each add. No external state library needed for this UX pattern.",
   },
 ];
 
@@ -189,7 +204,7 @@ const features = [
     title: "User Authentication",
     subtitle: "Supabase Auth",
     description:
-      "Secure login and session management with Supabase Auth. Row-level security enforced at the database layer — each user can only read and write their own plant collection.",
+      "Secure login and session management with Supabase Auth. Row-level security enforced at the database layer - each user can only read and write their own plant collection.",
   },
   {
     icon: Search,
@@ -210,30 +225,28 @@ const features = [
     title: "Persistent Data",
     subtitle: "Offline-first sync",
     description:
-      "All plant data persists to Supabase per user. Works fully offline via IndexedDB with automatic reconnect sync — no manual steps, no data loss between sessions.",
+      "All plant data persists to Supabase per user. Works fully offline via IndexedDB with automatic reconnect sync - no manual steps, no data loss between sessions.",
   },
 ];
 
 const screenshots = [
   {
-    label: "App Screenshot — Search View",
-    sublabel: "Browse and filter the global Trefle catalogue",
-    image: searchView,
+    label: "Search & discover plants",
+    sublabel: "Fast botanical search with live filters and suggestions",
+    videoSrc: "/search-feat.webm",
+    poster: "/search-view.webp",
   },
   {
-    label: "App Screenshot — Saved Plants View",
-    sublabel: "Personal collection with filter and sort options",
-    image: savedPlantsView,
+    label: "Save a new plant",
+    sublabel: "Create a collection entry with enriched plant metadata",
+    videoSrc: "/save-new-plant.webm",
+    poster: "/plant-detail.webp",
   },
   {
-    label: "App Screenshot — Plant Detail",
-    sublabel: "Enriched data from Trefle, POWO, GBIF, and EPPO",
-    image: plantDetail,
-  },
-  {
-    label: "App Screenshot — Trefle Data Extended",
-    sublabel: "Extended data from Trefle, POWO, GBIF, and EPPO",
-    image: trefleExtended,
+    label: "View saved plants",
+    sublabel: "Organize and revisit your curated plant collection",
+    videoSrc: "/all-saved-plants.webm",
+    poster: "/saved-plants-view.webp",
   },
 ];
 
@@ -276,8 +289,8 @@ function Nav() {
         </span>
 
         <div className="ml-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-800/60 bg-slate-200">
-          <span className="w-1 h-1 rounded-full bg-slate-600 inline-block" />
-          <span className="text-xs text-slate-600">Portfolio Case Study</span>
+          <span className="w-1 h-1 rounded-full bg-green-500 inline-block" />
+          <span className="text-xs text-slate-600">Case Study</span>
         </div>
       </div>
     </nav>
@@ -307,7 +320,7 @@ function Hero() {
         {/* Private project badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-800/80 bg-slate-900/30 text-slate-500 text-xs font-medium mb-10 tracking-wide">
           <Lock className="w-3 h-3" />
-          Private Client Project
+          Client Project
         </div>
 
         {/* Floating leaf icon with pulse ring */}
@@ -335,7 +348,7 @@ function Hero() {
 
         {/* Subtitle */}
         <p className="text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-          A persistent plant database built for a client, integrating the Trefle
+          A persistent plant database built for a private client. Integrating the Trefle
           botanical API with user authentication and saved plant collections.
         </p>
       </div>
@@ -569,7 +582,7 @@ function Screenshots() {
         <div className="mb-12">
           <SectionLabel>Preview</SectionLabel>
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
-            Screenshots
+            Live demo
           </h2>
         </div>
         <ScreenshotsSection screenshots={screenshots} />
@@ -587,7 +600,7 @@ function Footer() {
           <span className="text-xs font-medium">Plant Database</span>
         </div>
         <p className="text-xs text-slate-600 max-w-sm leading-relaxed">
-          Private client project.
+          Client project.
         </p>
       </div>
     </footer>
