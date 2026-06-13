@@ -48,7 +48,7 @@ const techCards = [
   },
   {
     name: "Cloudinary",
-    role: "Async image hosting via next-cloudinary",
+    role: "Async image hosting direct Cloudinary REST API",
     accent: "#93c5fd",
   },
 ];
@@ -347,9 +347,9 @@ function Hero() {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-          A persistent plant database built for a private client. Integrating the Trefle
-          botanical API with user authentication and saved plant collections.
+        <p className="text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed text-balance">
+          A project built for a horticulturalist. <br />
+          A searchable database keeping record of plant types, bloom months, light requirement, soil requirements, and horti-specific information such as pH levels, fragrances, soil types, harvest info, nativity and more..
         </p>
       </div>
 
@@ -357,6 +357,438 @@ function Hero() {
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
         <div className="w-px h-8 bg-linear-to-b from-transparent to-[#2a3e2a]" />
         <div className="w-px h-3 bg-linear-to-b from-[#2a3e2a] to-transparent" />
+      </div>
+    </section>
+  );
+}
+
+function DarkCodeBlock({ path, code }: { path: string; code: string }) {
+  return (
+    <div className="rounded-lg overflow-hidden border border-[#1a2e1a]">
+      <div className="px-4 py-2 bg-[#0c120c] border-b border-[#1a2e1a] flex items-center gap-2">
+        <div className="flex gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#ff5f57]/40" />
+          <span className="w-2 h-2 rounded-full bg-[#febc2e]/40" />
+          <span className="w-2 h-2 rounded-full bg-[#28c840]/40" />
+        </div>
+        <span className="text-[10px] font-mono text-slate-600">{path}</span>
+      </div>
+      <pre className="p-4 bg-[#0a140a] overflow-x-auto scrollbar-none">
+        <code className="text-[10.5px] font-mono text-green-200/80 leading-[1.65] whitespace-pre">
+          {code}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
+function CaseStudy() {
+  const fetchPlantByIdCode = ['async function fetchPlantById(plantId: number): Promise<TreflePlant | null> {',
+    '  try {',
+    '    const response = await fetch(',
+    '      `${BASE_URL}/plants/${plantId}?token=${TREFLE_API_KEY}`,',
+    '      { next: { revalidate: 3600 } }',
+    '    )',
+    '    if (!response.ok) return null',
+    '    const data = await response.json()',
+    '    return data.data as TreflePlant',
+    '  } catch {',
+    '    return null',
+    '  }',
+    '}',
+  ].join('\n');
+
+  const fetchSpeciesDetailsCode = ['async function fetchSpeciesDetails(speciesId: number): Promise<TrefleSpecies | null> {',
+    '  try {',
+    '    const response = await fetch(',
+    '      `${BASE_URL}/species/${speciesId}?token=${TREFLE_API_KEY}`,',
+    '      { next: { revalidate: 3600 } }',
+    '    )',
+    '    if (!response.ok) {',
+    "      logger.warn({ event: 'species_fetch_failed', speciesId, status: response.status })",
+    '      return null',
+    '    }',
+    '    const data: TrefleSpeciesDetailResponse = await response.json()',
+    '    return data.data',
+    '  } catch (err) {',
+    "    logger.error({ event: 'species_fetch_error', speciesId, error: String(err) })",
+    '    return null',
+    '  }',
+    '}',
+  ].join('\n');
+
+  const buildQueryStringCode = ['function buildQueryString(params: Record<string, string | undefined>): string {',
+    '  const validParams = Object.entries(params)',
+    "    .filter(([_, value]) => value !== undefined && value !== '')",
+    '    .map(([key, value]) => `${key}=${encodeURIComponent(value!)}`)',
+    "    .join('&')",
+    "  return validParams ? `?${validParams}` : ''",
+    '}',
+  ].join('\n');
+
+  const plantInterfaceCode = `export interface Plant {
+  id: string
+  apiId: number | null
+  commonName: string
+  scientificName: string
+  description: string
+  plantType: string[]
+  lifespan: string[]
+  blooms: string[]
+  light: string[]
+  forHarvest: boolean
+  hedgingTopiary: boolean
+  native: boolean
+  fragrant: string[]
+  poison: string[]
+  ph: string[]
+  watering: string
+  soilType: string[]
+  images: string[]
+  pendingImages: string[]
+  notes: string
+  isFavourite: boolean
+  createdAt: number
+  updatedAt: number
+  syncStatus: SyncStatus
+}`;
+
+  const filterInterfaceCode = `export interface PlantFilter {
+  plantType: string[]
+  lifespan: string[]
+  blooms: string[]
+  light: string[]
+  ph: string[]
+  poison: string[]
+  forHarvest: boolean | null
+  hedgingTopiary: boolean | null
+  native: boolean | null
+  fragrant: string[]
+  soilType: string[]
+}`;
+
+  return (
+    <section className="py-24 px-4 bg-[#070f07] border-t border-[#1a2e1a]/40">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-12">
+          <SectionLabel>Case Study</SectionLabel>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">
+            Client Requirements
+          </h2>
+        </div>
+
+        {/* Client Requirements */}
+        <div className="mb-20">
+          <div className="space-y-4 text-slate-400 leading-relaxed">
+            <p>
+              The client needed a way to search and filter their collection across multiple categories at once. Filters are additive — a plant that blooms in both spring and summer will show up under either, so nothing slips through the cracks.
+            </p>
+            <p>
+              The app works with or without an internet connection. Changes made offline are saved locally and synced automatically once the connection is restored. Plant photos are stored in the cloud, and each entry can be tailored with whatever details are relevant.
+            </p>
+            <p>
+              The search tool draws on a botanical database to surface rich information about any plant — common and scientific names, growing conditions, photos, and links to trusted reference sources.
+            </p>
+            <p>
+              Plants in the personal collection are added by hand, with the owner filling in only the details that matter to them. This keeps the database focused and accurate rather than bloated with data that isn't useful.
+            </p>
+          </div>
+        </div>
+
+        {/* User Flow */}
+        <div className="mb-20">
+          <h3 className="text-xl font-semibold text-white mb-6">
+            User Flow
+          </h3>
+
+          {/* Flowchart */}
+          <div className="flex flex-col items-center gap-0">
+
+            {/* Start node */}
+            <div className="flex items-center justify-center px-5 py-2 rounded-full border border-green-500/40 bg-green-500/10 text-green-400 text-xs font-mono tracking-widest uppercase">
+              Start
+            </div>
+
+            {/* Down arrow */}
+            <div className="flex flex-col items-center">
+              <div className="w-px h-5 bg-green-500/30" />
+              <svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg>
+            </div>
+
+            {/* Decision diamond */}
+            <div className="relative flex items-center justify-center w-40 h-16">
+              <svg viewBox="0 0 160 64" className="absolute inset-0 w-full h-full" fill="none">
+                <path d="M80 4 L156 32 L80 60 L4 32 Z" stroke="#166534" strokeWidth="1.5" fill="#090f09" />
+              </svg>
+              <span className="relative text-xs text-slate-300 font-medium">Add a plant</span>
+            </div>
+
+            {/* Two branches */}
+            <div className="relative flex w-full max-w-2xl justify-between mt-0">
+              {/* Left label */}
+              <div className="flex flex-col items-center" style={{ width: "50%" }}>
+                <div className="flex items-center gap-1 mb-1">
+                  <div className="w-px h-5 bg-green-500/30 invisible" />
+                </div>
+              </div>
+              {/* Right label */}
+              <div className="flex flex-col items-center" style={{ width: "50%" }}>
+              </div>
+
+              {/* Horizontal line spanning both */}
+              <div className="absolute top-0 left-1/4 right-1/4 h-px bg-green-500/30" />
+              {/* Left vertical */}
+              <div className="absolute top-0 left-1/4 w-px h-8 bg-green-500/30" style={{ transform: "translateX(-50%)" }} />
+              {/* Right vertical */}
+              <div className="absolute top-0 right-1/4 w-px h-8 bg-green-500/30" style={{ transform: "translateX(50%)" }} />
+
+              {/* Left arrow */}
+              <div className="absolute left-1/4 top-8" style={{ transform: "translateX(-50%)" }}>
+                <svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg>
+              </div>
+              {/* Right arrow */}
+              <div className="absolute right-1/4 top-8" style={{ transform: "translateX(50%)" }}>
+                <svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg>
+              </div>
+
+              {/* Branch labels */}
+              <span className="absolute left-1/4 top-1 text-[10px] text-green-500/60 font-mono" style={{ transform: "translateX(calc(-50% - 28px))" }}>manually</span>
+              <span className="absolute right-1/4 top-1 text-[10px] text-green-500/60 font-mono" style={{ transform: "translateX(calc(50% + 4px))" }}>via Trefle</span>
+            </div>
+
+            {/* Two parallel columns */}
+            <div className="grid grid-cols-2 gap-8 w-full max-w-2xl mt-6">
+
+              {/* ── Path A: Manual Entry ── */}
+              <div className="flex flex-col items-center gap-0 h-full">
+                <div className="w-full px-4 py-3 rounded-lg border border-[#1a2e1a] bg-[#090f09] text-center">
+                  <p className="text-xs font-semibold text-white mb-0.5">Manual Entry</p>
+                  <p className="text-[11px] text-slate-500">Fill in plant details, descriptions, images, notes &amp; horticulture traits</p>
+                </div>
+                <div className="flex flex-col items-center"><div className="w-px h-4 bg-green-500/30" /><svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg></div>
+                <div className="w-full px-4 py-3 rounded-lg border border-[#1a2e1a] bg-[#090f09] text-center">
+                  <p className="text-[11px] text-slate-500">POST to Postgres with all selected criteria</p>
+                </div>
+                <div className="w-px flex-1 bg-green-500/30 mt-0" />
+              </div>
+
+              {/* ── Path B: Trefle Search ── */}
+              <div className="flex flex-col items-center gap-0">
+                <div className="w-full px-4 py-3 rounded-lg border border-[#1a2e1a] bg-[#090f09] text-center">
+                  <p className="text-xs font-semibold text-white mb-0.5">Trefle Search</p>
+                  <p className="text-[11px] text-slate-500">Search by name - hits Trefle API</p>
+                </div>
+                <div className="flex flex-col items-center"><div className="w-px h-4 bg-green-500/30" /><svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg></div>
+                <div className="w-full px-4 py-3 rounded-lg border border-[#1a2e1a] bg-[#090f09] text-center">
+                  <p className="text-[11px] text-slate-500">Browse botanical data — growth habits, native regions, care requirements</p>
+                </div>
+                <div className="flex flex-col items-center"><div className="w-px h-4 bg-green-500/30" /><svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg></div>
+                <div className="w-full px-4 py-3 rounded-lg border border-[#1a2e1a] bg-[#090f09] text-center">
+                  <p className="text-[11px] text-slate-500">One-click save imports Trefle data into personal collection</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Converge lines */}
+            <div className="w-full max-w-2xl">
+              {/* Vertical drops — same grid as content so centers are guaranteed to align */}
+              <div className="grid grid-cols-2 gap-8">
+                <div className="flex justify-center">
+                  <div className="w-px h-6 bg-green-500/30" />
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-px h-6 bg-green-500/30" />
+                </div>
+              </div>
+              {/* Horizontal bar connecting the two drops */}
+              <div className="grid grid-cols-2 gap-8">
+                <div className="flex">
+                  <div className="flex-1" />
+                  <div className="flex-1 border-t border-green-500/30" />
+                </div>
+                <div className="flex">
+                  <div className="flex-1 border-t border-green-500/30" />
+                  <div className="flex-1" />
+                </div>
+              </div>
+              {/* Center drop + arrow */}
+              <div className="flex flex-col items-center">
+                <div className="w-px h-4 bg-green-500/30" />
+                <svg width="10" height="6" viewBox="0 0 10 6" className="text-green-500/40 fill-current"><path d="M5 6 L0 0 L10 0Z" /></svg>
+              </div>
+            </div>
+
+            {/* Terminal node */}
+            <div className="flex items-center justify-center px-5 py-3 rounded-lg border border-green-500/40 bg-green-500/10 text-center mt-1">
+              <div>
+                <p className="text-xs font-semibold text-green-300">Plant saved to collection</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Returned on /saved with full metadata</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* API Integration */}
+        <div className="mb-20">
+          <h3 className="text-xl font-semibold text-white mb-2">
+            API Integration
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 leading-relaxed max-w-2xl">
+            The /api/plants route proxies requests to the Trefle botanical API, combining plant and species lookups into a single round trip. Server-side caching with 3600-second revalidation reduces upstream calls.
+          </p>
+          <div className="space-y-6">
+            <DarkCodeBlock
+              path="/api/plants/route.ts"
+              code={fetchPlantByIdCode}
+            />
+            <DarkCodeBlock
+              path="/api/plants/route.ts"
+              code={fetchSpeciesDetailsCode}
+            />
+            <DarkCodeBlock
+              path="/api/plants/route.ts"
+              code={buildQueryStringCode}
+            />
+          </div>
+        </div>
+
+        {/* Data Architecture */}
+        <div className="mb-20">
+          <h3 className="text-xl font-semibold text-white mb-2">
+            Data Architecture
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 leading-relaxed max-w-2xl">
+            The application maintains a strict boundary between Trefle API shapes (snake_case) and the app domain model (camelCase). Mapping occurs in exactly two files.
+          </p>
+          <div className="space-y-6">
+            <DarkCodeBlock
+              path="src/types/plant.ts"
+              code={plantInterfaceCode}
+            />
+            <DarkCodeBlock
+              path="src/types/plant.ts"
+              code={filterInterfaceCode}
+            />
+          </div>
+        </div>
+
+        {/* Image Hosting */}
+        <div className="mb-20">
+          <h3 className="text-xl font-semibold text-white mb-2">
+            Image Hosting
+          </h3>
+          <div className="space-y-4 text-slate-400 leading-relaxed mb-6">
+            <p>
+              Users can upload images for each plant. Images are sent asynchronously to Cloudinary via <code className="text-green-300 text-xs font-mono">next-cloudinary</code>, which returns a URL. That URL is saved to the plant record in Postgres and displayed on the /saved-plants route.
+            </p>
+            <p>
+              When offline, images queue in a <code className="text-green-300 text-xs font-mono">pendingImages</code> IndexedDB table and upload automatically on reconnection. The app runs fully without Cloudinary configured &mdash; it falls back to base64 data URLs stored locally.
+            </p>
+          </div>
+          <DarkCodeBlock
+            path="src/lib/db.ts"
+            code={`
+export async function uploadImage(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', uploadPreset)
+
+  const response = await fetch(
+    \`https://api.cloudinary.com/v1_1/\${cloudName}/image/upload\`,
+    {
+      method: 'POST',
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image')
+  }
+
+  const data = await response.json()
+  const url: unknown = data.secure_url
+
+  if (typeof url !== 'string' || !url.startsWith('https://')) {
+    logger.error({ event: 'cloudinary_invalid_url', receivedType: typeof url })
+    throw new Error('Cloudinary returned an invalid URL')
+  }
+
+  return url
+}  
+            `}
+          />
+        </div>
+
+        {/* Why Trefle? */}
+        <div>
+          <h3 className="text-xl font-semibold text-white mb-2">
+            Why Trefle?
+          </h3>
+          <div className="space-y-4 text-slate-400 leading-relaxed">
+            <p>
+              Trefle aggregates, normalises, and enriches plant data from multiple botanical and public sources into a single API &mdash; USDA plant datasets, GBIF taxonomy records, OpenFarm growing information, and various botanical databases. It handles deduplication across sources, taxonomic normalisation, and data enrichment.
+            </p>
+            <p>
+              Alternatives &mdash; Perenual, Plant.ID, iNaturalist, raw GBIF or WFO &mdash; each contain pieces of the puzzle but not the complete picture. Scraping multiple sources independently would be over-engineered for what the search feature needs.
+            </p>
+            <p className="text-slate-500 text-sm border-l-2 border-[#1a2e1a] pl-4 italic">
+              Notably, no existing application combines plant taxonomy with practical horticulture information &mdash; pests, watering, soil types, bloom seasons &mdash; in a single authoritative source. This remains an identified gap in the market.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  return (
+    <section className="py-24 px-4 bg-[#070f07] border-t border-[#1a2e1a]/40">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-12">
+          <SectionLabel>Capabilities</SectionLabel>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">
+            Key Features
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={feature.title}
+                className="relative p-6 rounded-xl border border-[#1a2e1a] bg-[#090f09] hover:border-[#2a4a2a] hover:bg-[#0b160b] hover:shadow-[0_0_32px_rgba(74,222,128,0.06)] transition-all duration-200"
+              >
+                {/* Icon */}
+                <div className="mb-5 inline-flex p-2.5 rounded-lg bg-green-500/6 border border-green-500/15">
+                  <Icon className="w-5 h-5 text-green-400" />
+                </div>
+
+                {/* Heading row */}
+                <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <h3 className="text-base font-semibold text-white">
+                    {feature.title}
+                  </h3>
+                  <span className="text-xs text-slate-600 font-medium">
+                    {feature.subtitle}
+                  </span>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  {feature.description}
+                </p>
+
+                {/* Corner bracket accent */}
+                <div className="absolute top-0 right-0 w-8 h-8 overflow-hidden rounded-xl pointer-events-none">
+                  <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-green-500/20 rounded-tr-xl" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -523,58 +955,6 @@ function TechStack() {
   );
 }
 
-function Features() {
-  return (
-    <section className="py-24 px-4 bg-[#070f07] border-t border-[#1a2e1a]/40">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-12">
-          <SectionLabel>Capabilities</SectionLabel>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white">
-            Key Features
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="relative p-6 rounded-xl border border-[#1a2e1a] bg-[#090f09] hover:border-[#2a4a2a] hover:bg-[#0b160b] hover:shadow-[0_0_32px_rgba(74,222,128,0.06)] transition-all duration-200"
-              >
-                {/* Icon */}
-                <div className="mb-5 inline-flex p-2.5 rounded-lg bg-green-500/6 border border-green-500/15">
-                  <Icon className="w-5 h-5 text-green-400" />
-                </div>
-
-                {/* Heading row */}
-                <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <h3 className="text-base font-semibold text-white">
-                    {feature.title}
-                  </h3>
-                  <span className="text-xs text-slate-600 font-medium">
-                    {feature.subtitle}
-                  </span>
-                </div>
-
-                {/* Description */}
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  {feature.description}
-                </p>
-
-                {/* Corner bracket accent */}
-                <div className="absolute top-0 right-0 w-8 h-8 overflow-hidden rounded-xl pointer-events-none">
-                  <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-green-500/20 rounded-tr-xl" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function Screenshots() {
   return (
     <section className="py-24 px-4 border-t border-green-200/60 bg-[#f5fdf5]">
@@ -615,6 +995,7 @@ export default function Home() {
       <TopAccent />
       <Nav />
       <Hero />
+      <CaseStudy />
       <TechStack />
       <Features />
       <Screenshots />
